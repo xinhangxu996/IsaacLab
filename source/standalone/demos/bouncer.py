@@ -41,12 +41,21 @@ from omni.isaac.lab.assets import ArticulationCfg, AssetBaseCfg, RigidObject, Ri
 from omni.isaac.lab.scene import InteractiveScene, InteractiveSceneCfg
 from omni.isaac.lab.sim import SimulationContext
 from omni.isaac.lab.utils import configclass
+from omni.isaac.core.objects import FixedCuboid,DynamicSphere,VisualCuboid
 
 ##
 # Pre-defined configs
 ##
-from omni.isaac.lab_assets import CARTPOLE_CFG  # isort:skip
+# from omni.isaac.lab_assets import CARTPOLE_CFG  # isort:skip
+
+from omni.isaac.lab_assets.unitree import UNITREE_GO1_CFG  # isort: skip
+from omni.isaac.lab.sensors import CameraCfg, ContactSensorCfg, RayCasterCfg, patterns
+import omni.isaac.core.utils.prims as prim_utils
+
 import numpy as np
+
+wall_h=10.0
+wall_w=6.0
 
 @configclass
 class BouncerSceneCfg(InteractiveSceneCfg):
@@ -59,10 +68,62 @@ class BouncerSceneCfg(InteractiveSceneCfg):
     dome_light = AssetBaseCfg(prim_path="/World/Light", spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75)))
 
     # articulation
-    cartpole: ArticulationCfg = CARTPOLE_CFG.replace(prim_path="/World/envs/env_.*/Robot")
+    # cartpole: ArticulationCfg = CARTPOLE_CFG.replace(prim_path="/World/envs/env_.*/Robot")
+    cartpole: ArticulationCfg = UNITREE_GO1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+    camera = CameraCfg(
+
+        prim_path="{ENV_REGEX_NS}/Robot/trunk/camera_face/camera",
+
+        update_period=0.1,
+
+        height=480,
+
+        width=640,
+
+        data_types=["rgb", "distance_to_image_plane"],
+
+        spawn=sim_utils.PinholeCameraCfg(
+
+            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
+
+        ),
+
+        offset=CameraCfg.OffsetCfg(pos=(0.510, 0.0, 0.015), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
+
+    )
+    # VisualCuboid(prim_path="/World/envs/env_0/ball", translation=np.array([0.0, 0.0, 5.0]),size=10.0)
+
+    # prim_utils.define_prim("/World/envs/env_*")
+
+
+    # FixedCuboid(prim_path="{ENV_REGEX_NS}/wall1", translation=np.array([3.1, 0.0, 5.0]), size=np.array([0.2, 6, 20]))
+    # height_scanner = RayCasterCfg(
+
+    #     prim_path="{ENV_REGEX_NS}/Robot/base",
+
+    #     update_period=0.02,
+
+    #     offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
+
+    #     attach_yaw_only=True,
+
+    #     pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),
+
+    #     debug_vis=True,
+
+    #     mesh_prim_paths=["/World/defaultGroundPlane"],
+
+    # )
+
+    # contact_forces = ContactSensorCfg(
+
+    #     prim_path="{ENV_REGEX_NS}/Robot/.*_FOOT", update_period=0.0, history_length=6, debug_vis=True
+
+    # )
 
     # Make balloon
-    # replicate_physics = False
+    replicate_physics = False
     # balloon: DeformableObjectCfg = DeformableObjectCfg(
     #     prim_path="/World/envs/env_.*/Sphere",
     #     spawn=sim_utils.MultiAssetSpawnerCfg(
@@ -85,6 +146,84 @@ class BouncerSceneCfg(InteractiveSceneCfg):
     #     init_state=DeformableObjectCfg.InitialStateCfg(pos=[0, 0, 7]),
     # )
 
+
+
+    # wall_r:RigidObject=RigidObjectCfg(
+    #     prim_path="/World/envs/env_.*/Wall_r",
+    #     spawn=sim_utils.MultiAssetSpawnerCfg(
+    #         assets_cfg=[
+    #             sim_utils.CuboidCfg(
+    #                 size=(wall_w, 6, wall_h),
+    #                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0), metallic=0.2),
+    #             )
+    #         ],
+    #         random_choice=True,
+    #         rigid_props=sim_utils.RigidBodyPropertiesCfg(
+    #             linear_damping=5.0
+    #         ),
+    #         mass_props=sim_utils.MassPropertiesCfg(mass=10000),
+    #         collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True),
+    #     ),
+    #     init_state=RigidObjectCfg.InitialStateCfg(pos=(wall_w*0.5+3, 0.0, 5.0)),
+    # )
+
+    # wall_l:RigidObject=RigidObjectCfg(
+    #     prim_path="/World/envs/env_.*/Wall_l",
+    #     spawn=sim_utils.MultiAssetSpawnerCfg(
+    #         assets_cfg=[
+    #             sim_utils.CuboidCfg(
+    #                 size=(wall_w, 6, wall_h),
+    #                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0), metallic=0.2),
+    #             )
+    #         ],
+    #         random_choice=True,
+    #         rigid_props=sim_utils.RigidBodyPropertiesCfg(
+    #             linear_damping=5.0
+    #         ),
+    #         mass_props=sim_utils.MassPropertiesCfg(mass=10000),
+    #         collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True),
+    #     ),
+    #     init_state=RigidObjectCfg.InitialStateCfg(pos=(-wall_w*0.5-3, 0.0, 5.0)),
+    # )
+
+    # wall_f:RigidObject=RigidObjectCfg(
+    #     prim_path="/World/envs/env_.*/Wall_f",
+    #     spawn=sim_utils.MultiAssetSpawnerCfg(
+    #         assets_cfg=[
+    #             sim_utils.CuboidCfg(
+    #                 size=(6, wall_w, wall_h),
+    #                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0), metallic=0.2),
+    #             )
+    #         ],
+    #         random_choice=True,
+    #         rigid_props=sim_utils.RigidBodyPropertiesCfg(
+    #             linear_damping=5.0
+    #         ),
+    #         mass_props=sim_utils.MassPropertiesCfg(mass=10000),
+    #         collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True),
+    #     ),
+    #     init_state=RigidObjectCfg.InitialStateCfg(pos=( 0.0,wall_w*0.5+3, 5.0)),
+    # )
+
+    # wall_b:RigidObject=RigidObjectCfg(
+    #     prim_path="/World/envs/env_.*/Wall_b",
+    #     spawn=sim_utils.MultiAssetSpawnerCfg(
+    #         assets_cfg=[
+    #             sim_utils.CuboidCfg(
+    #                 size=(6, wall_w, wall_h),
+    #                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0), metallic=0.2),
+    #             )
+    #         ],
+    #         random_choice=True,
+    #         rigid_props=sim_utils.RigidBodyPropertiesCfg(
+    #             linear_damping=5.0
+    #         ),
+    #         mass_props=sim_utils.MassPropertiesCfg(mass=10000.0),
+    #         collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True),
+    #     ),
+    #     init_state=RigidObjectCfg.InitialStateCfg(pos=( 0.0,-wall_w*0.5-3, 5.0)),
+    # ) # type: ignore
+
     balloon: RigidObjectCfg = RigidObjectCfg(
         prim_path="/World/envs/env_.*/Sphere",
         spawn=sim_utils.MultiAssetSpawnerCfg(
@@ -93,16 +232,26 @@ class BouncerSceneCfg(InteractiveSceneCfg):
                     radius=0.5,
                     visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.0, 0.0), metallic=0.2),
                 ),
+                sim_utils.SphereCfg(
+                    radius=0.5,
+                    visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 1.0, 0.0), metallic=0.2),
+                ),
+                sim_utils.SphereCfg(
+                    radius=0.5,
+                    visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 1.0), metallic=0.2),
+                ),
             ],
             random_choice=True,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                linear_damping=10.0
+                linear_damping=5.0
             ),
             mass_props=sim_utils.MassPropertiesCfg(mass=0.01),
             collision_props=sim_utils.CollisionPropertiesCfg(),
         ),
-        init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, 0.0, 5.0)),
+        init_state=RigidObjectCfg.InitialStateCfg(pos=(2.0, 0.0, 5.0)),
     )
+
+
 
 
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
@@ -115,6 +264,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     sim_dt = sim.get_physics_dt()
     count = 0
     # Simulation loop
+    
+
+
     while simulation_app.is_running():
         # Reset
         if count % 1250 == 0:
@@ -131,6 +283,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             joint_pos, joint_vel = robot.data.default_joint_pos.clone(), robot.data.default_joint_vel.clone()
             joint_pos += torch.rand_like(joint_pos) * 0.1
             robot.write_joint_state_to_sim(joint_pos, joint_vel)
+
+
 
             print(scene.rigid_objects.keys)
 
@@ -168,6 +322,27 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         count += 1
         # Update buffers
         scene.update(sim_dt)
+        print("-------------------------------")
+
+        print(scene["camera"])
+
+        print("Received shape of rgb   image: ", scene["camera"].data.output["rgb"].shape)
+
+        print("Received shape of depth image: ", scene["camera"].data.output["distance_to_image_plane"].shape)
+
+        print("-------------------------------")
+
+        # print(scene["height_scanner"])
+
+        # print("Received max height value: ", torch.max(scene["height_scanner"].data.ray_hits_w[..., -1]).item())
+
+        # print("-------------------------------")
+
+        # print(scene["contact_forces"])
+
+        # print("Received max contact force of: ", torch.max(scene["contact_forces"].data.net_forces_w).item())
+
+
 
 
 def findCamTarget(vp, rz, rx):
@@ -213,7 +388,8 @@ def main():
     sim.set_camera_view(campos, camtar)
 
     # Design scene
-    scene_cfg = BouncerSceneCfg(num_envs=2, env_spacing=2.0)
+# scene_cfg = BouncerSceneCfg(num_envs=args_cli.num_envs, env_spacing=2*wall_w+1)
+    scene_cfg = BouncerSceneCfg(num_envs=args_cli.num_envs, env_spacing=50)
     scene = InteractiveScene(scene_cfg)
 
     # Play the simulator
