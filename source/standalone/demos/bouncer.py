@@ -46,10 +46,10 @@ from omni.isaac.lab.utils import configclass
 # Pre-defined configs
 ##
 from omni.isaac.lab_assets import CARTPOLE_CFG  # isort:skip
-
+import numpy as np
 
 @configclass
-class CartpoleSceneCfg(InteractiveSceneCfg):
+class BouncerSceneCfg(InteractiveSceneCfg):
     """Configuration for a cart-pole scene."""
 
     # ground plane
@@ -62,27 +62,27 @@ class CartpoleSceneCfg(InteractiveSceneCfg):
     cartpole: ArticulationCfg = CARTPOLE_CFG.replace(prim_path="/World/envs/env_.*/Robot")
 
     # Make balloon
-
+    # replicate_physics = False
     # balloon: DeformableObjectCfg = DeformableObjectCfg(
     #     prim_path="/World/envs/env_.*/Sphere",
     #     spawn=sim_utils.MultiAssetSpawnerCfg(
     #         assets_cfg=[
     #             sim_utils.MeshSphereCfg(
     #                 radius=0.5,
-    #                 # deformable_props=sim_utils.DeformableBodyPropertiesCfg(rest_offset=0.0, contact_offset=0.001),
+    #                 deformable_props=sim_utils.DeformableBodyPropertiesCfg(rest_offset=0.0, contact_offset=0.001),
     #                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.5, 0.1, 0.0)),
-    #                 # physics_material=sim_utils.DeformableBodyMaterialCfg(poissons_ratio=0.4, youngs_modulus=1e5),
+    #                 physics_material=sim_utils.DeformableBodyMaterialCfg(poissons_ratio=0.4, youngs_modulus=1e5),
     #             ),
     #         ],
     #         random_choice=False,
     #         deformable_props=sim_utils.DeformableBodyPropertiesCfg(
     #             # rest_offset=0.0, contact_offset=0.001,
-    #             solver_position_iteration_count=4, vertex_velocity_damping=20
+    #             solver_position_iteration_count=4, vertex_velocity_damping=5
     #         ),
     #         mass_props=sim_utils.MassPropertiesCfg(mass=0.01),
     #         # collision_props=sim_utils.CollisionPropertiesCfg(),
     #     ),
-    #     init_state=DeformableObjectCfg.InitialStateCfg(pos=[0, 0, 10]),
+    #     init_state=DeformableObjectCfg.InitialStateCfg(pos=[0, 0, 7]),
     # )
 
     balloon: RigidObjectCfg = RigidObjectCfg(
@@ -91,12 +91,12 @@ class CartpoleSceneCfg(InteractiveSceneCfg):
             assets_cfg=[
                 sim_utils.SphereCfg(
                     radius=0.5,
-                    visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 1.0), metallic=0.2),
+                    visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.0, 0.0), metallic=0.2),
                 ),
             ],
-            random_choice=False,
+            random_choice=True,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                linear_damping=20.0
+                linear_damping=10.0
             ),
             mass_props=sim_utils.MassPropertiesCfg(mass=0.01),
             collision_props=sim_utils.CollisionPropertiesCfg(),
@@ -131,40 +131,30 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             joint_pos, joint_vel = robot.data.default_joint_pos.clone(), robot.data.default_joint_vel.clone()
             joint_pos += torch.rand_like(joint_pos) * 0.1
             robot.write_joint_state_to_sim(joint_pos, joint_vel)
-            
-            
+
+            print(scene.rigid_objects.keys)
+
             if isinstance(balloon, DeformableObject):
                 
                 # Reset the balloons
                 balloon_state = balloon.data.default_nodal_state_w.clone()
-
-                print("balloon type: ", balloon)
-                print("robot.num_instances", robot.num_instances)
-                print("balloon.num_instances", balloon.num_instances)
-                print("scene.env_origins\n", scene.env_origins)
-                print("balloon_state.shape", balloon_state.shape)
-
                 balloon.write_nodal_state_to_sim(balloon_state)
                 balloon.reset()
 
             elif isinstance(balloon, RigidObject):
                 
+                print(balloon.body_names)
+
                 # Reset the balloons
                 balloon_state = balloon.data.default_root_state.clone()
                 balloon_state[:, :3] += scene.env_origins
-
-                print("balloon type: ", balloon)
-                print("robot.num_instances", robot.num_instances)
-                print("balloon.num_instances", balloon.num_instances)
-                print("scene.env_origins\n", scene.env_origins)
-                print("balloon_state.shape", balloon_state.shape)
-
                 balloon.write_root_state_to_sim(balloon_state)
                 balloon.reset()
 
             # clear internal buffers
             scene.reset()
             print("[INFO]: Resetting robot state...")
+
         # Apply random action
         # -- generate random joint efforts
         efforts = torch.randn_like(robot.data.joint_pos) * 5.0
@@ -180,20 +170,58 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         scene.update(sim_dt)
 
 
+def findCamTarget(vp, rz, rx):
+    
+    x = vp[0]
+    y = vp[1]
+    z = vp[2]
+
+    pi  = np.pi
+    cos = np.cos
+    sin = np.sin
+
+    rx = rx*pi/180
+    rz = rz*pi/180
+
+    t = [0, 0, 0]
+
+    if abs(cos(rx) > 1e-3):    # There can be an intersection with ground plane z = 0
+        print("Intersection with ground")
+        k = z/cos(rx)
+        t = [x - k*sin(rz)*sin(rx), y + k*cos(rz)*sin(rx), z - k*cos(rx)]
+    elif abs(cos(rz)) > 1e-3:  # There can be an intersection with ground plane y = 0
+        print("Intersection with y = 0")
+        k = -y/cos(rz)
+        t = [x - k*sin(rz), 0, z]
+    else:  # There can be an intersection with ground plane x = 0
+        print("Intersection with x = 0")
+        k = x/sin(rz)
+        t = [0, y + k*cos(rz), z]
+    
+    return t
+
 def main():
+
     """Main function."""
     # Load kit helper
     sim_cfg = sim_utils.SimulationCfg(device=args_cli.device)
     sim = SimulationContext(sim_cfg)
-    # Set main camera
-    sim.set_camera_view([2.5, 0.0, 4.0], [0.0, 0.0, 2.0])
+    
+    # Set the view
+    campos = [-25, -7, 9]
+    camtar = findCamTarget(vp=campos, rz=-72, rx=72)
+    sim.set_camera_view(campos, camtar)
+
     # Design scene
-    scene_cfg = CartpoleSceneCfg(num_envs=args_cli.num_envs, env_spacing=2.0)
+    scene_cfg = BouncerSceneCfg(num_envs=2, env_spacing=2.0)
     scene = InteractiveScene(scene_cfg)
+
     # Play the simulator
     sim.reset()
+    
     # Now we are ready!
     print("[INFO]: Setup complete...")
+    
     # Run the simulator
     run_simulator(sim, scene)
 
